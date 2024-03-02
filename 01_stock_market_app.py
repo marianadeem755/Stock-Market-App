@@ -26,7 +26,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler,StandardScaler,LabelEncoder
 
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
-st.title("Stock Market price prediction App!!")
+st.title("Stock Market price prediction App Created by Maria Nadeem!!")
 st.text("This App Forcast The stock Market price of selected company")
 st.image("https://images.unsplash.com/photo-1563986768711-b3bde3dc821e?q=80&w=1468&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")
 st.sidebar.header("Select the parameters")
