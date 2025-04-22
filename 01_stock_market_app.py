@@ -221,23 +221,42 @@ elif selected_model=="LSTM":
     fig.update_layout(title='Actual vs Predicted (LSTM)', xaxis_title='Date', yaxis_title='Price',
                       width=1000, height=400)
     st.plotly_chart(fig)
-elif selected_model=="Prophet":
+elif selected_model == "Prophet":
     st.header("Facebook Prophet Model")
-    prophet_data=data[["Date", column]]
-    prophet_data=prophet_data.rename(columns={"Date":"ds", column:"y"})
-    # fit the prophet model
-    prophet_model=Prophet()
+    prophet_data = data[["Date", column]]
+    prophet_data = prophet_data.rename(columns={"Date": "ds", column: "y"})
+    
+    # Fit the Prophet model
+    prophet_model = Prophet()
     prophet_model.fit(prophet_data)
-        # Forecast the future values
-    future = prophet_model.make_future_dataframe(periods=365)
-    forecast = prophet_model.predict(future)
 
-    # Plot the forecast
+    # Make a future dataframe
+    forecast_period = st.number_input("Select the number of days to forecast", 1, 365, 10)
+    future = prophet_model.make_future_dataframe(prophet_data, periods=forecast_period)
+
+    # Make predictions
+    forecast = prophet_model.predict(future)
+    
+    # Visualize the forecast
+    st.write(f"Forecasting for {forecast_period} days")
     fig = prophet_model.plot(forecast)
-    plt.title('Forecast with Facebook Prophet')
-    plt.xlabel('Date')
-    plt.ylabel('Price')
     st.pyplot(fig)
+    
+    # Plot the components (trend, seasonal, etc.)
+    st.write("Plotting the components of the forecast")
+    fig2 = prophet_model.plot_components(forecast)
+    st.pyplot(fig2)
+
+    # Display performance metrics (optional)
+    st.write("Performance Metrics")
+    actual_values = data[column][-forecast_period:].values
+    predicted_values = forecast["yhat"][-forecast_period:].values
+    mae = mean_absolute_error(actual_values, predicted_values)
+    mse = mean_squared_error(actual_values, predicted_values)
+    rmse = np.sqrt(mse)
+    st.write(f"Mean Absolute Error (MAE): {mae}")
+    st.write(f"Mean Squared Error (MSE): {mse}")
+    st.write(f"Root Mean Squared Error (RMSE): {rmse}")
 elif selected_model == "GRU":
     st.header("Gated Recurrent Unit (GRU)")
      # scale the Data
