@@ -99,8 +99,7 @@ if selected_model=="SARIMA":
     p=st.slider("Select the value of p", 0,5,2)
     d=st.slider("Select the value of d", 0,5,1)
     q=st.slider("Select the Value of q", 0,5,2)
-    seasonal_order=st.number_input("Select the seasonal period", 0,24,12)
-    
+    seasonal_order=st.number_input("Select the seasonal period", 0,24,12)  
     try:
         model=sm.tsa.statespace.SARIMAX(data[column].dropna(), order=(p,d,q), seasonal_order=(p,d,q,seasonal_order))
         model=model.fit()
