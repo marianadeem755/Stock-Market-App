@@ -93,51 +93,55 @@ except ValueError as e:
 # Select the Model
 models=["SARIMA","Random Forest","LSTM", "Prophet","GRU","SVM","DenseNet"]
 selected_model=st.sidebar.selectbox("Select the Model for Forecasting", models)
-
-if selected_model=="SARIMA":
+if selected_model == "SARIMA":
     st.header("SARIMA Model")
-    p=st.slider("Select the value of p", 0,5,2)
-    d=st.slider("Select the value of d", 0,5,1)
-    q=st.slider("Select the Value of q", 0,5,2)
-    seasonal_order=st.number_input("Select the seasonal period", 0,24,12)  
+    p = st.slider("Select the value of p", 0, 5, 2)
+    d = st.slider("Select the value of d", 0, 5, 1)
+    q = st.slider("Select the value of q", 0, 5, 2)
+    seasonal_order = st.number_input("Select the seasonal period", 0, 24, 12)
     try:
-        model=sm.tsa.statespace.SARIMAX(data[column].dropna(), order=(p,d,q), seasonal_order=(p,d,q,seasonal_order))
-        model=model.fit()
-        
-        #Summary of the model 
+        model = sm.tsa.statespace.SARIMAX(
+            data[column].dropna(), 
+            order=(p, d, q), 
+            seasonal_order=(p, d, q, seasonal_order)
+        )
+        model = model.fit()
+
+        # Summary of the model 
         st.header("Model Summary")
         st.write(model.summary())
         st.write("---")
-        
+
         # Forecasting using SARIMA
-        st.write("<p style='color:red; font-size: 50px; font-weight: bold;'>Forecasting the data with SARIMA</p>",
-                 unsafe_allow_html=True)
-        
-        forecast_period=st.number_input("Select the Number of days to forecast", 1,365,10)
-        predictions=model.get_forecast(steps=forecast_period)
+        st.markdown("<p style='color:red; font-size: 50px; font-weight: bold;'>Forecasting the data with SARIMA</p>", unsafe_allow_html=True)
+
+        forecast_period = st.number_input("Select the Number of days to forecast", 1, 365, 10)
+        predictions = model.get_forecast(steps=forecast_period)
         predictions_df = predictions.conf_int()
         predictions_df['Predictions'] = model.predict(start=predictions_df.index[0], end=predictions_df.index[-1])
-        
+
         # Create future dates
         last_date = data['Date'].iloc[-1]
-        prediction_dates = pd.date_range(last_date, periods=forecast_period+1)[1:]
-        
+        prediction_dates = pd.date_range(last_date, periods=forecast_period + 1)[1:]
+
         # Plotting
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=data['Date'], y=data[column], name='Actual', mode='lines', line=dict(color='blue')))
-        fig.add_trace(go.Scatter(x=prediction_dates, y=predictions_df['Predictions'], name='Predicted', 
-                               mode='lines', line=dict(color='red')))
-        fig.add_trace(go.Scatter(x=prediction_dates, y=predictions_df.iloc[:, 0], 
-                               fill=None, mode='lines', line=dict(width=0), showlegend=False))
-        fig.add_trace(go.Scatter(x=prediction_dates, y=predictions_df.iloc[:, 1], 
-                               fill='tonexty', mode='lines', line=dict(width=0), showlegend=False))
-        fig.update_layout(title=f'SARIMA Forecast for {ticker}', xaxis_title='Date', yaxis_title='Price',
-                         width=1000, height=600)
+        fig.add_trace(go.Scatter(x=prediction_dates, y=predictions_df['Predictions'], name='Predicted', mode='lines', line=dict(color='red')))
+        fig.add_trace(go.Scatter(x=prediction_dates, y=predictions_df.iloc[:, 0], fill=None, mode='lines', line=dict(width=0), showlegend=False))
+        fig.add_trace(go.Scatter(x=prediction_dates, y=predictions_df.iloc[:, 1], fill='tonexty', mode='lines', line=dict(width=0), showlegend=False))
+
+        fig.update_layout(
+            title=f'SARIMA Forecast for {ticker}', 
+            xaxis_title='Date', 
+            yaxis_title='Price',
+            width=1000, 
+            height=600
+        )
         st.plotly_chart(fig)
-        
+
     except Exception as e:
         st.error(f"Error in SARIMA model: {str(e)}")
-
 elif selected_model=="Random Forest":
     st.header("Random Forest Regression")
     
