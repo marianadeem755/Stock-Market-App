@@ -221,27 +221,23 @@ elif selected_model=="LSTM":
     fig.update_layout(title='Actual vs Predicted (LSTM)', xaxis_title='Date', yaxis_title='Price',
                       width=1000, height=400)
     st.plotly_chart(fig)
-elif selected_model == "Prophet":
+elif selected_model=="Prophet":
     st.header("Facebook Prophet Model")
-    prophet_data = data[["Date", column]]
-    prophet_data = prophet_data.rename(columns={"Date": "ds", column: "y"})
-    
-    # Fit the Prophet model
-    prophet_model = Prophet()
+    prophet_data=data[["Date", column]]
+    prophet_data=prophet_data.rename(columns={"Date":"ds", column:"y"})
+    # fit the prophet model
+    prophet_model=Prophet()
     prophet_model.fit(prophet_data)
-
-    # Make a future dataframe
-    forecast_period = st.number_input("Select the number of days to forecast", 1, 365, 10)
-    future = prophet_model.make_future_dataframe(prophet_data, periods=forecast_period)
-
-    # Make predictions
+        # Forecast the future values
+    future = prophet_model.make_future_dataframe(periods=365)
     forecast = prophet_model.predict(future)
-    
-    # Visualize the forecast
-    st.write(f"Forecasting for {forecast_period} days")
+
+    # Plot the forecast
     fig = prophet_model.plot(forecast)
+    plt.title('Forecast with Facebook Prophet')
+    plt.xlabel('Date')
+    plt.ylabel('Price')
     st.pyplot(fig)
-    
     # Plot the components (trend, seasonal, etc.)
     st.write("Plotting the components of the forecast")
     fig2 = prophet_model.plot_components(forecast)
