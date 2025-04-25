@@ -36,7 +36,6 @@ ticker_list=["AAPL", "MSFT", "GOOG", "GOOGL", "META", "TSLA", "NVDA", "ADBE", "P
 ticker=st.sidebar.selectbox("Select the Company", ticker_list)
 # Fetch the data using yahoofinance library
 data = yf.download(ticker, start=start_date, end=end_date)
-data.insert(0,"Date", data.index, True)
 data.reset_index(inplace=True)  # This keeps the date column properly named
 st.write('Data From', start_date, 'to', end_date)
 st.write(data)
