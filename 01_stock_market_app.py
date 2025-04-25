@@ -36,8 +36,6 @@ ticker_list=["AAPL", "MSFT", "GOOG", "GOOGL", "META", "TSLA", "NVDA", "ADBE", "P
 ticker=st.sidebar.selectbox("Select the Company", ticker_list)
 # Fetch the data using yahoofinance library
 data = yf.download(ticker, start=start_date, end=end_date)
-data.insert(0,"Date", data.index, True)
-data.reset_index(drop=True, inplace=True)
 st.write('Data From', start_date, 'to', end_date)
 st.write(data)
 # Plot the Data 
@@ -87,8 +85,6 @@ if selected_model=="SARIMA":
     predictions=predictions.predicted_mean
     predictions.index=pd.date_range(start=end_date, periods=len(predictions), freq="D")
     predictions=pd.DataFrame(predictions)
-    predictions.insert(0, "Date", predictions.index, True)
-    predictions.reset_index(drop=True, inplace=True)
     st.write('predictions', predictions)
     st.write("Actual Data", data)
     st.write("---")
