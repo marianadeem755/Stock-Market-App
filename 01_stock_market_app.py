@@ -6,411 +6,376 @@ import matplotlib.pyplot as plt
 import plotly.express as px 
 import plotly.graph_objects as go 
 import streamlit as st 
+import io 
 import yfinance as yf 
 import statsmodels.api as sm 
 from sklearn.svm import SVR
 import datetime
 from datetime import date
+from datetime import time,timedelta
 from statsmodels.tsa.seasonal import seasonal_decompose 
 from statsmodels.tsa.stattools import adfuller
 from prophet import Prophet
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error,mean_squared_error,r2_score
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
 from tensorflow.keras.layers import GRU
+from keras.applications import ResNet50
+from keras import layers
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler,StandardScaler,LabelEncoder
 
-# Set page config
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
-st.title("Stock Market Price Prediction App")
-st.text("This App Forecasts The Stock Market Price of Selected Company")
+st.title("Stock Market price prediction App Created by Maria Nadeem!!")
+st.text("This App Forcast The stock Market price of selected company")
 st.image("https://images.unsplash.com/photo-1563986768711-b3bde3dc821e?q=80&w=1468&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")
-
-# Sidebar controls
 st.sidebar.header("Select the parameters")
-start_date = st.sidebar.date_input('Start Date', date(2001, 1, 1))
-end_date = st.sidebar.date_input('End Date', date(2025, 1, 1))
-ticker_list = ["AAPL", "MSFT", "GOOG", "GOOGL", "META", "TSLA", "NVDA", "ADBE", "PYPL", "INTC", "CMCSA", "NFLX", "PEP"]
-ticker = st.sidebar.selectbox("Select the Company", ticker_list)
-
-# Fetch the data
-@st.cache_data
-def load_data(ticker, start_date, end_date):
-    data = yf.download(ticker, start=start_date, end=end_date)
-    data.reset_index(inplace=True)
-    return data
-
-data = load_data(ticker, start_date, end_date)
-
-# Display the data
+start_date=st.sidebar.date_input('Start Date', date(2001,1,1))
+end_date=st.sidebar.date_input('End Date', date(2025,1,1))
+ticker_list=["AAPL", "MSFT", "GOOG", "GOOGL", "META", "TSLA", "NVDA", "ADBE", "PYPL", "INTC", "CMCSA", "NFLX", "PEP"]
+ticker=st.sidebar.selectbox("Select the Company", ticker_list)
+# Fetch the data using yahoofinance library
+data = yf.download(ticker, start=start_date, end=end_date)
+data.insert(0,"Date", data.index, True)
+data.reset_index(drop=True, inplace=True)
 st.write('Data From', start_date, 'to', end_date)
 st.write(data)
-
-# Data Visualization
-st.header("Data Visualization")
-st.subheader("Closing Price Over Time")
-st.write("Select the specific date from the date range or zoom in the plot for detailed visualization")
-
-# Corrected plot - using 'Close' column instead of index
-fig = px.line(data, x="Date", y="Close", title=f"{ticker} Closing Price", 
-              width=1000, height=600, labels={"Close": "Price ($)"})
+# Plot the Data 
+st.header("Data Visualization plot")
+st.subheader("Plot the Data")
+plt.figure(figsize=(6,5))
+st.write("select the *specific date* from the date range or zoom in the plot for detailed visualization and select the specific column")
+fig=px.line(data, x="Date", y=data.index, title="Closing price of the stock", width=1000, height=600)
 st.plotly_chart(fig)
-
-# Column selection for forecasting
-column = st.selectbox("Select the column for forecasting", data.columns[1:])
-data = data[["Date", column]]
+# create a selection box to choose the column for forecasting
+column=st.selectbox("Select the column for forecasting", data.columns[1:])
+data=data[["Date", column]]
 st.write("Selected Data for forecasting")
 st.write(data)
-
-# ADF Test
+# Apply the ADF test to check the stationarity
 st.write("#### ADF test to check the stationarity")
-adf_result = adfuller(data[column].dropna())
-st.write(f"ADF p-value: {adf_result[1]:.4f}")
-st.write(f"Is the data stationary? {adf_result[1] < 0.05}")
-
-# Decomposition
-st.write("### Decomposition Analysis")
-try:
-    decomposition = seasonal_decompose(data.set_index("Date")[column], model='additive', period=12)
+st.write(adfuller(data[column])[1]<0.05)
+# Decompose the Data and make the decomposition plot 
+decomposition=seasonal_decompose(data[column], model='additive', period=12)
+st.write(decomposition.plot())
+# Now making the decomposition plot using plotly
+st.write("Decomposition Plot using plotly")
+st.plotly_chart(px.line(x=data["Date"], y=decomposition.trend, width=1000, height=400, title="Trend", labels={"x":"Date", "y":"price"}).update_traces(line_color="green"))
+st.plotly_chart(px.line(x=data["Date"], y=decomposition.seasonal, width=1000, height=400, title="Seasonality", labels={"x":"Date", "y":"price"}).update_traces(line_color="blue"))
+st.plotly_chart(px.line(x=data["Date"], y=decomposition.resid, width=1000, height=400, title="Residual", labels={"x":"Date", "y":"price"}).update_traces(line_color="red"))
+# Select the Model
+models=["SARIMA","Random Forest","LSTM", "Prophet","GRU","SVM","DenseNet"]
+selected_model=st.sidebar.selectbox("Select the Model for Forecasting", models)
+if selected_model=="SARIMA":
+    p=st.slider("Select the value of p", 0,5,2)
+    d=st.slider("Selct the value of d", 0,5,1)
+    q=st.slider("Select the Value of q", 0,5,2)
+    seasonal_order=st.number_input("Select the value of p", 0,24,12)
+    model=sm.tsa.statespace.SARIMAX(data[column],order=(p,d,q), seasonal_order=(p,d,q, seasonal_order))
+    # Train the model 
+    model=model.fit()
+    #Summary of the model 
+    st.header("Model Summary")
+    st.write(model.summary())
+    st.write("---")
+     # Forecasting using SARIMA
+    st.write("<p style='color:red; font-size: 50px; font-weight: bold;'>Forecasting the data with SARIMA</p>",
+             unsafe_allow_html=True)
     
-    st.write("#### Trend Component")
-    fig_trend = px.line(x=decomposition.trend.index, y=decomposition.trend, 
-                        title="Trend Component", labels={"x": "Date", "y": "Value"})
-    st.plotly_chart(fig_trend)
-    
-    st.write("#### Seasonal Component")
-    fig_seasonal = px.line(x=decomposition.seasonal.index, y=decomposition.seasonal, 
-                          title="Seasonal Component", labels={"x": "Date", "y": "Value"})
-    st.plotly_chart(fig_seasonal)
-    
-    st.write("#### Residual Component")
-    fig_resid = px.line(x=decomposition.resid.index, y=decomposition.resid, 
-                        title="Residual Component", labels={"x": "Date", "y": "Value"})
-    st.plotly_chart(fig_resid)
-except ValueError as e:
-    st.warning(f"Could not perform decomposition: {str(e)}")
-
-# Model selection
-models = ["SARIMA", "Random Forest", "LSTM", "Prophet", "GRU", "SVM", "DenseNet"]
-selected_model = st.sidebar.selectbox("Select the Model for Forecasting", models)
-
-if selected_model == "SARIMA":
-    st.header("SARIMA Model")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        p = st.slider("Select the value of p", 0, 5, 1)
-    with col2:
-        d = st.slider("Select the value of d", 0, 5, 1)
-    with col3:
-        q = st.slider("Select the value of q", 0, 5, 1)
-    
-    seasonal_order = st.number_input("Select the seasonal period", 1, 24, 12)
-    
-    try:
-        model = sm.tsa.statespace.SARIMAX(data[column], order=(p, d, q), seasonal_order=(p, d, q, seasonal_order))
-        model_fit = model.fit(disp=False)
-        
-        st.header("Model Summary")
-        st.write(model_fit.summary())
-        
-        forecast_period = st.number_input("Select the number of days to forecast", 1, 365, 30)
-        forecast = model_fit.get_forecast(steps=forecast_period)
-        forecast_df = pd.DataFrame({
-            "Date": pd.date_range(start=data["Date"].iloc[-1], periods=forecast_period+1)[1:],
-            "Predicted": forecast.predicted_mean
-        })
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=data["Date"], y=data[column], name="Actual", mode="lines"))
-        fig.add_trace(go.Scatter(x=forecast_df["Date"], y=forecast_df["Predicted"], name="Forecast", mode="lines"))
-        fig.update_layout(title=f"{ticker} {column} Forecast with SARIMA", xaxis_title="Date", yaxis_title="Price")
-        st.plotly_chart(fig)
-        
-    except Exception as e:
-        st.error(f"Error in SARIMA model: {str(e)}")
-
-elif selected_model == "Random Forest":
+    forecast_period=st.number_input("Select the Number of days to forecast", 1,365,10)
+    predictions=model.get_prediction(start=len(data), end=len(data)+forecast_period)
+    predictions=predictions.predicted_mean
+    predictions.index=pd.date_range(start=end_date, periods=len(predictions), freq="D")
+    predictions=pd.DataFrame(predictions)
+    predictions.insert(0, "Date", predictions.index, True)
+    predictions.reset_index(drop=True, inplace=True)
+    st.write('predictions', predictions)
+    st.write("Actual Data", data)
+    st.write("---")
+    # make the plotly plot
+    fig=go.Figure()
+    fig.add_trace(go.Scatter(x=data["Date"], y=data[column], name="Actual", mode="lines", line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=predictions["Date"], y=predictions["predicted_mean"], name="Predicted", mode="lines", line=dict(color='red')))
+    fig.update_layout(title="Actual vs Predicted", xaxis_title="Actual", yaxis_title="predicted", width=1000, height=400)
+    st.plotly_chart(fig)
+elif selected_model=="Random Forest":
     st.header("Random Forest Regression")
-    
-    # Prepare data
-    data['Days'] = (data['Date'] - data['Date'].min()).dt.days
-    X = data[['Days']].values
-    y = data[column].values
-    
-    # Split data
-    train_size = int(len(X) * 0.8)
-    X_train, X_test = X[:train_size], X[train_size:]
-    y_train, y_test = y[:train_size], y[train_size:]
-    
-    # Train model
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
-    
-    # Predictions
-    y_pred = model.predict(X_test)
-    
-    # Metrics
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    st.write(f"RMSE: {rmse:.2f}")
-    
-    # Plot
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['Date'][:train_size], y=y_train, name="Training Data"))
-    fig.add_trace(go.Scatter(x=data['Date'][train_size:], y=y_test, name="Actual Test Data"))
-    fig.add_trace(go.Scatter(x=data['Date'][train_size:], y=y_pred, name="Predicted"))
-    fig.update_layout(title=f"{ticker} {column} - Random Forest Forecast")
+    # Splitting Data into training and Testing set
+    train_size=int(len(data)*0.8)
+    train_data, test_data=data[:train_size], data[train_size:]
+    # Feature Engineering 
+    train_X, train_y=train_data["Date"], train_data[column]
+    test_X,test_y=test_data["Date"], test_data[column]
+    # train the random forest model 
+    rf_model=RandomForestRegressor(n_estimators=100, random_state=42)
+    rf_model.fit(train_X.values.reshape(-1,1), train_y.values)
+    # predictions
+    predictions=rf_model.predict(test_X.values.reshape(-1,1))
+    # calculate the mean_squared_error
+    mse=mean_squared_error(test_y, predictions)
+    rmse=np.sqrt(mse)
+    st.write(f"Root Mean Squared Error: {rmse}")
+    # combine the training and Testing Data for plotting
+    combined_data=pd.concat([train_data, test_data])
+    # plot the data 
+    fig=go.Figure()
+    fig.add_trace(go.Scatter(x=combined_data["Date"], y=combined_data[column], mode='lines', name='Actual', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=test_data["Date"], y=predictions, mode='lines', name='predicted', line=dict(color='red')))
+    fig.update_layout(title="Actual vs Predicted(R andom Forest)", xaxis_title="Date", yaxis_title="Price", width=1000, height=400)
     st.plotly_chart(fig)
-
-elif selected_model == "LSTM":
-    st.header("Long Short-Term Memory (LSTM)")
-    
-    # Prepare data
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(data[[column]].values)
-    
-    # Create sequences
-    seq_length = st.slider("Select sequence length", 5, 30, 10)
-    
-    def create_sequences(data, seq_length):
-        X, y = [], []
-        for i in range(len(data)-seq_length):
-            X.append(data[i:(i+seq_length), 0])
-            y.append(data[i+seq_length, 0])
-        return np.array(X), np.array(y)
-    
-    X, y = create_sequences(scaled_data, seq_length)
-    
-    # Split data
-    train_size = int(len(X) * 0.8)
-    X_train, X_test = X[:train_size], X[train_size:]
-    y_train, y_test = y[:train_size], y[train_size:]
-    
-    # Reshape for LSTM
-    X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
-    X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
-    
-    # Build model
-    model = Sequential()
-    model.add(LSTM(50, return_sequences=True, input_shape=(seq_length, 1)))
-    model.add(LSTM(50))
-    model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mean_squared_error')
-    
-    # Train model
-    model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=1)
-    
-    # Predictions
-    train_predict = model.predict(X_train)
-    test_predict = model.predict(X_test)
-    
-    # Inverse transform
-    train_predict = scaler.inverse_transform(train_predict)
-    y_train = scaler.inverse_transform([y_train])
-    test_predict = scaler.inverse_transform(test_predict)
-    y_test = scaler.inverse_transform([y_test])
-    
-    # Calculate RMSE
-    train_rmse = np.sqrt(mean_squared_error(y_train[0], train_predict[:,0]))
-    test_rmse = np.sqrt(mean_squared_error(y_test[0], test_predict[:,0]))
-    st.write(f"Train RMSE: {train_rmse:.2f}")
-    st.write(f"Test RMSE: {test_rmse:.2f}")
-    
-    # Create plot data
-    train_dates = data['Date'][seq_length:train_size+seq_length]
-    test_dates = data['Date'][train_size+seq_length:]
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['Date'], y=data[column], name="Actual Data"))
-    fig.add_trace(go.Scatter(x=train_dates, y=train_predict[:,0], name="Train Predictions"))
-    fig.add_trace(go.Scatter(x=test_dates, y=test_predict[:,0], name="Test Predictions"))
-    fig.update_layout(title=f"{ticker} {column} - LSTM Forecast")
-    st.plotly_chart(fig)
-
-elif selected_model == "Prophet":
-    st.header("Facebook Prophet Model")
-    
-    # Prepare data
-    prophet_data = data.rename(columns={'Date': 'ds', column: 'y'})
-    
-    # Create and fit model
-    model = Prophet()
-    model.fit(prophet_data)
-    
-    # Make future dataframe
-    future_periods = st.number_input("Days to forecast", 30, 365, 90)
-    future = model.make_future_dataframe(periods=future_periods)
-    
-    # Forecast
-    forecast = model.predict(future)
-    
-    # Plot forecast
-    fig1 = model.plot(forecast)
-    plt.title(f"{ticker} {column} - Prophet Forecast")
-    st.pyplot(fig1)
-    
-    # Plot components
-    st.write("### Forecast Components")
-    fig2 = model.plot_components(forecast)
-    st.pyplot(fig2)
-
-elif selected_model == "GRU":
-    st.header("Gated Recurrent Unit (GRU)")
-    
-    # Prepare data (similar to LSTM)
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(data[[column]].values)
-    
-    seq_length = st.slider("Select sequence length", 5, 30, 10)
-    
-    def create_sequences(data, seq_length):
-        X, y = [], []
-        for i in range(len(data)-seq_length):
-            X.append(data[i:(i+seq_length), 0])
-            y.append(data[i+seq_length, 0])
-        return np.array(X), np.array(y)
-    
-    X, y = create_sequences(scaled_data, seq_length)
-    
-    train_size = int(len(X) * 0.8)
-    X_train, X_test = X[:train_size], X[train_size:]
-    y_train, y_test = y[:train_size], y[train_size:]
-    
-    X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
-    X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
-    
-    # Build GRU model
-    model = Sequential()
-    model.add(GRU(50, return_sequences=True, input_shape=(seq_length, 1)))
-    model.add(GRU(50))
-    model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mean_squared_error')
-    
-    model.fit(X_train, y_train, epochs=20, batch_size=32, verbose=1)
-    
-    train_predict = model.predict(X_train)
-    test_predict = model.predict(X_test)
-    
-    train_predict = scaler.inverse_transform(train_predict)
-    y_train = scaler.inverse_transform([y_train])
-    test_predict = scaler.inverse_transform(test_predict)
-    y_test = scaler.inverse_transform([y_test])
-    
-    train_rmse = np.sqrt(mean_squared_error(y_train[0], train_predict[:,0]))
-    test_rmse = np.sqrt(mean_squared_error(y_test[0], test_predict[:,0]))
-    st.write(f"Train RMSE: {train_rmse:.2f}")
-    st.write(f"Test RMSE: {test_rmse:.2f}")
-    
-    train_dates = data['Date'][seq_length:train_size+seq_length]
-    test_dates = data['Date'][train_size+seq_length:]
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['Date'], y=data[column], name="Actual Data"))
-    fig.add_trace(go.Scatter(x=train_dates, y=train_predict[:,0], name="Train Predictions"))
-    fig.add_trace(go.Scatter(x=test_dates, y=test_predict[:,0], name="Test Predictions"))
-    fig.update_layout(title=f"{ticker} {column} - GRU Forecast")
-    st.plotly_chart(fig)
-
 elif selected_model == "SVM":
     st.header("Support Vector Machine (SVM)")
-    
-    # Prepare data
-    data['Days'] = (data['Date'] - data['Date'].min()).dt.days
-    X = data[['Days']].values
-    y = data[column].values
-    
-    # Scale data
-    scaler = MinMaxScaler()
-    X_scaled = scaler.fit_transform(X)
-    y_scaled = scaler.fit_transform(y.reshape(-1, 1))
-    
-    # Split data
-    train_size = int(len(X) * 0.8)
-    X_train, X_test = X_scaled[:train_size], X_scaled[train_size:]
-    y_train, y_test = y_scaled[:train_size], y_scaled[train_size:]
-    
-    # Train model
-    model = SVR(kernel='rbf')
-    model.fit(X_train, y_train.ravel())
-    
-    # Predictions
-    y_pred = model.predict(X_test)
-    y_pred = scaler.inverse_transform(y_pred.reshape(-1, 1))
-    y_test = scaler.inverse_transform(y_test)
-    
-    # Metrics
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    st.write(f"RMSE: {rmse:.2f}")
-    
-    # Plot
+    # scale the Data
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(data[column].values.reshape(-1, 1))
+    train_size = int(len(scaled_data) * 0.8)
+    train_data, test_data = scaled_data[:train_size], scaled_data[train_size:]
+    def create_sequences(dataset, seq_length):
+        X, y = [], []
+        for i in range(len(dataset) - seq_length):
+            X.append(dataset[i:i + seq_length, 0])
+            y.append(dataset[i + seq_length, 0])
+        return np.array(X), np.array(y)
+    seq_length = st.slider("Select the Sequence Length", 1, 30, 10)
+    train_X, train_y = create_sequences(train_data, seq_length)
+    test_X, test_y = create_sequences(test_data, seq_length)
+    # Reshape train_X and test_X for SVM
+    train_X = train_X.reshape(-1, seq_length)
+    test_X = test_X.reshape(-1, seq_length)
+    # Build and train SVM model
+    svm_model = SVR(kernel='rbf')
+    svm_model.fit(train_X, train_y)
+    # Predict the future values
+    train_predictions = svm_model.predict(train_X)
+    test_predictions = svm_model.predict(test_X)
+    train_predictions = train_predictions.reshape(-1, 1)
+    test_predictions = test_predictions.reshape(-1, 1)
+    train_predictions = scaler.inverse_transform(train_predictions)
+    test_predictions = scaler.inverse_transform(test_predictions)
+    # Calculate the mean_squared_error
+    train_mse = mean_squared_error(train_data[seq_length:], train_predictions)
+    train_rmse = np.sqrt(train_mse)
+    test_mse = mean_squared_error(test_data[seq_length:], test_predictions)
+    test_rmse = np.sqrt(test_mse)
+    st.write(f"Train Root Mean Squared Error: {train_rmse}")
+    st.write(f"Test Root Mean Squared Error: {test_rmse}")
+    train_dates = data["Date"][:train_size + seq_length]
+    test_dates = data["Date"][train_size + seq_length:]
+    combined_dates = pd.concat([train_dates, test_dates])
+    combined_predictions = np.concatenate([train_predictions, test_predictions])
+    # Plot the data
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['Date'][:train_size], y=data[column][:train_size], name="Training Data"))
-    fig.add_trace(go.Scatter(x=data['Date'][train_size:], y=data[column][train_size:], name="Actual Test Data"))
-    fig.add_trace(go.Scatter(x=data['Date'][train_size:], y=y_pred.flatten(), name="Predicted"))
-    fig.update_layout(title=f"{ticker} {column} - SVM Forecast")
+    fig.add_trace(go.Scatter(x=combined_dates, y=data[column], mode='lines', name='Actual', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=test_dates, y=combined_predictions, mode='lines', name='Predicted', line=dict(color='red')))
+    fig.update_layout(title='Actual vs Predicted (SVM)', xaxis_title='Date', yaxis_title='Price', width=1000, height=400)
     st.plotly_chart(fig)
+elif selected_model=="LSTM":
+    st.header("Long Short Term Memory(LSTM)")
+    # scale the Data
+    scaler=MinMaxScaler(feature_range=(0,1))
+    scaled_data=scaler.fit_transform(data[column].values.reshape(-1,1))
+    #split the Data into Training and Testing Data 
+    train_size=int(len(scaled_data)*0.8)
+    train_data, test_data=scaled_data[:train_size], scaled_data[train_size:]
+    def create_sequences(dataset, seq_length):
+        X, y=[],[]
+        for i in range(len(dataset)-seq_length):
+            X.append(dataset[i:i+seq_length,0])
+            y.append(dataset[i+seq_length,0])
+        return np.array(X), np.array(y)
+    seq_length=st.slider("Select the Sequence Length", 1,30,10)
+    train_X, train_y = create_sequences(train_data, seq_length)
+    test_X, test_y = create_sequences(test_data, seq_length)
+    # Reshape train_X and test_X
+    train_X = np.reshape(train_X, (train_X.shape[0], train_X.shape[1], 1))
+    test_X = np.reshape(test_X, (test_X.shape[0], test_X.shape[1], 1))
+    # Build LSTM Model 
+    lstm_model=Sequential()
+    lstm_model.add(LSTM(units=50, return_sequences=True, input_shape=(train_X.shape[1],1)))
+    lstm_model.add(LSTM(units=50))
+    lstm_model.add(Dense(units=1))
+    #compile the lstm_model 
+    lstm_model.compile(optimizer='adam', loss='mean_squared_error')
+    lstm_model.fit(train_X,train_y, epochs=20, batch_size=16)
+    # predict the future values
+    train_predictions=lstm_model.predict(train_X)
+    test_predictions=lstm_model.predict(test_X)
+    train_predictions=scaler.inverse_transform(train_predictions)
+    test_predictions=scaler.inverse_transform(test_predictions)
+    # calculate the mean_squared_error
+    train_mse=mean_squared_error(train_data[seq_length:], train_predictions)
+    train_rmse=np.sqrt(train_mse)
+    test_mse=mean_squared_error(test_data[seq_length:], test_predictions)
+    test_rmse=np.sqrt(test_mse)
+    st.write(f"train Root Mean Squared Error:{train_rmse}")
+    st.write(f"Test Root Mean Squared Error:{test_rmse}")
+    train_dates=data["Date"][:train_size+seq_length]
+    test_dates=data["Date"][train_size+seq_length:]
+    combined_dates=pd.concat([train_dates,test_dates])
+    combined_predictions=np.concatenate([train_predictions,test_predictions])
+    # Plot the data
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=combined_dates, y=data[column], mode='lines', name='Actual', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=test_dates, y=combined_predictions, mode='lines', name='Predicted',
+                             line=dict(color='red')))
+    fig.update_layout(title='Actual vs Predicted (LSTM)', xaxis_title='Date', yaxis_title='Price',
+                      width=1000, height=400)
+    st.plotly_chart(fig)
+elif selected_model=="Prophet":
+    st.header("Facebook Prophet Model")
+    prophet_data=data[["Date", column]]
+    prophet_data=prophet_data.rename(columns={"Date":"ds", column:"y"})
+    # fit the prophet model
+    prophet_model=Prophet()
+    prophet_model.fit(prophet_data)
+        # Forecast the future values
+    future = prophet_model.make_future_dataframe(periods=365)
+    forecast = prophet_model.predict(future)
 
+    # Plot the forecast
+    fig = prophet_model.plot(forecast)
+    plt.title('Forecast with Facebook Prophet')
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    st.pyplot(fig)
+    # Plot the components (trend, seasonal, etc.)
+    st.write("Plotting the components of the forecast")
+    fig2 = prophet_model.plot_components(forecast)
+    st.pyplot(fig2)
+
+    # Display performance metrics (optional)
+    st.write("Performance Metrics")
+    actual_values = data[column][-forecast_period:].values
+    predicted_values = forecast["yhat"][-forecast_period:].values
+    mae = mean_absolute_error(actual_values, predicted_values)
+    mse = mean_squared_error(actual_values, predicted_values)
+    rmse = np.sqrt(mse)
+    st.write(f"Mean Absolute Error (MAE): {mae}")
+    st.write(f"Mean Squared Error (MSE): {mse}")
+    st.write(f"Root Mean Squared Error (RMSE): {rmse}")
+elif selected_model == "GRU":
+    st.header("Gated Recurrent Unit (GRU)")
+     # scale the Data
+    scaler=MinMaxScaler(feature_range=(0,1))
+    # Prepare the data for GRU
+    scaled_data = scaler.fit_transform(data[column].values.reshape(-1, 1))
+    train_size = int(len(scaled_data) * 0.8)
+    train_data, test_data = scaled_data[:train_size], scaled_data[train_size:]
+    def create_sequences(dataset, seq_length):
+        X, y = [], []
+        for i in range(len(dataset) - seq_length):
+            X.append(dataset[i:i + seq_length, 0])
+            y.append(dataset[i + seq_length, 0])
+        return np.array(X), np.array(y)
+    seq_length = st.slider("Select the Sequence Length", 1, 30, 10)
+    train_X, train_y = create_sequences(train_data, seq_length)
+    test_X, test_y = create_sequences(test_data, seq_length)
+    # Reshape train_X and test_X for GRU
+    train_X = np.reshape(train_X, (train_X.shape[0], train_X.shape[1], 1))
+    test_X = np.reshape(test_X, (test_X.shape[0], test_X.shape[1], 1))
+    # Build GRU model
+    gru_model = Sequential()
+    gru_model.add(GRU(units=50, return_sequences=True, input_shape=(train_X.shape[1], 1)))
+    gru_model.add(GRU(units=50))
+    gru_model.add(Dense(units=1))
+    # Compile the GRU model
+    gru_model.compile(optimizer='adam', loss='mean_squared_error')
+    gru_model.fit(train_X, train_y, epochs=20, batch_size=16)
+    # Predict the future values
+    train_predictions = gru_model.predict(train_X)
+    test_predictions = gru_model.predict(test_X)
+    train_predictions = scaler.inverse_transform(train_predictions)
+    test_predictions = scaler.inverse_transform(test_predictions)
+    # Calculate the mean_squared_error
+    train_mse = mean_squared_error(train_data[seq_length:], train_predictions)
+    train_rmse = np.sqrt(train_mse)
+    test_mse = mean_squared_error(test_data[seq_length:], test_predictions)
+    test_rmse = np.sqrt(test_mse)
+    st.write(f"Train Root Mean Squared Error: {train_rmse}")
+    st.write(f"Test Root Mean Squared Error: {test_rmse}")
+    train_dates = data["Date"][:train_size + seq_length]
+    test_dates = data["Date"][train_size + seq_length:]
+    combined_dates = pd.concat([train_dates, test_dates])
+    combined_predictions = np.concatenate([train_predictions, test_predictions])
+    # Plot the data
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=combined_dates, y=data[column], mode='lines', name='Actual', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=test_dates, y=combined_predictions, mode='lines', name='Predicted', line=dict(color='red')))
+    fig.update_layout(title='Actual vs Predicted (GRU)', xaxis_title='Date', yaxis_title='Price', width=1000, height=400)
+    st.plotly_chart(fig)
 elif selected_model == "DenseNet":
-    st.header("Dense Neural Network")
-    
-    # Prepare data
-    data['Days'] = (data['Date'] - data['Date'].min()).dt.days
-    X = data[['Days']].values
-    y = data[column].values
-    
-    # Scale data
-    scaler = MinMaxScaler()
-    X_scaled = scaler.fit_transform(X)
-    y_scaled = scaler.fit_transform(y.reshape(-1, 1))
-    
-    # Split data
-    train_size = int(len(X) * 0.8)
-    X_train, X_test = X_scaled[:train_size], X_scaled[train_size:]
-    y_train, y_test = y_scaled[:train_size], y_scaled[train_size:]
-    
-    # Build model
+    st.header("DenseNet Model")
+    # Preprocessing Data
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(data[column].values.reshape(-1, 1))
+    train_size = int(len(scaled_data) * 0.8)
+    train_data, test_data = scaled_data[:train_size], scaled_data[train_size:]
+    def create_sequences(dataset, seq_length):
+        X, y = [], []
+        for i in range(len(dataset) - seq_length):
+            X.append(dataset[i:i + seq_length, 0])
+            y.append(dataset[i + seq_length, 0])
+        return np.array(X), np.array(y)
+    seq_length = st.slider("Select the Sequence Length", 1, 30, 10)
+    train_X, train_y = create_sequences(train_data, seq_length)
+    test_X, test_y = create_sequences(test_data, seq_length)
+    # Reshape train_X and test_X for DenseNet
+    train_X = np.reshape(train_X, (train_X.shape[0], train_X.shape[1]))  # Remove the extra dimension
+    test_X = np.reshape(test_X, (test_X.shape[0], test_X.shape[1]))  # Remove the extra dimension
+    # Build DenseNet model
     model = Sequential()
-    model.add(Dense(64, input_dim=1, activation='relu'))
-    model.add(Dense(32, activation='relu'))
+    model.add(Dense(128, input_shape=(seq_length,), activation='relu'))  # Adjust input_shape
+    model.add(Dense(64, activation='relu'))
     model.add(Dense(1))
+    # Compile the model
     model.compile(optimizer='adam', loss='mean_squared_error')
-    
-    # Train model
-    model.fit(X_train, y_train, epochs=100, batch_size=32, verbose=1)
-    
-    # Predictions
-    y_pred = model.predict(X_test)
-    y_pred = scaler.inverse_transform(y_pred)
-    y_test = scaler.inverse_transform(y_test)
-    
-    # Metrics
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = np.sqrt(mse)
-    st.write(f"RMSE: {rmse:.2f}")
-    
-    # Plot
+    # Train the model
+    model.fit(train_X, train_y, epochs=20, batch_size=16)
+    # Predict the future values
+    train_predictions = model.predict(train_X)
+    test_predictions = model.predict(test_X)
+    train_predictions = scaler.inverse_transform(train_predictions)
+    test_predictions = scaler.inverse_transform(test_predictions)
+    # Calculate the mean_squared_error
+    train_mse = mean_squared_error(train_data[seq_length:], train_predictions)
+    train_rmse = np.sqrt(train_mse)
+    test_mse = mean_squared_error(test_data[seq_length:], test_predictions)
+    test_rmse = np.sqrt(test_mse)
+    st.write(f"Train Root Mean Squared Error: {train_rmse}")
+    st.write(f"Test Root Mean Squared Error: {test_rmse}")
+    train_dates = data["Date"][:train_size + seq_length]
+    test_dates = data["Date"][train_size + seq_length:]
+    combined_dates = pd.concat([train_dates, test_dates])
+    combined_predictions = np.concatenate([train_predictions, test_predictions])
+    # Plot the data
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['Date'][:train_size], y=data[column][:train_size], name="Training Data"))
-    fig.add_trace(go.Scatter(x=data['Date'][train_size:], y=data[column][train_size:], name="Actual Test Data"))
-    fig.add_trace(go.Scatter(x=data['Date'][train_size:], y=y_pred.flatten(), name="Predicted"))
-    fig.update_layout(title=f"{ticker} {column} - DenseNet Forecast")
+    fig.add_trace(go.Scatter(x=combined_dates, y=data[column], mode='lines', name='Actual', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=test_dates, y=combined_predictions, mode='lines', name='Predicted', line=dict(color='red')))
+    fig.update_layout(title='Actual vs Predicted (DenseNet)', xaxis_title='Date', yaxis_title='Price', width=1000, height=400)
     st.plotly_chart(fig)
-
-# Footer
+else:
+    st.write("Invalid model selected.")
+st.write("Model selected:", selected_model)
 st.sidebar.markdown("---")
-st.sidebar.markdown("### Author: Maria Nadeem")
-st.sidebar.markdown("### GitHub: [GitHub Profile](https://github.com/marianadeem755)")
-st.sidebar.markdown("### LinkedIn: [LinkedIn Profile](https://www.linkedin.com/in/maria-nadeem-4994122aa/)")
+# add author name and info
+st.sidebar.markdown("### Author: Maria Nadeem🎉🎊⚡")
+st.sidebar.markdown("### GitHub: [GitHub](https://github.com/marianadeem755)")
+st.sidebar.markdown("### Linkdin: [Linkdin Account](https://www.linkedin.com/in/maria-nadeem-4994122aa/)")
 st.sidebar.markdown("### Contact: [Email](mailto:marianadeem755@gmail.com)")
+st.sidebar.markdown("### Credits: [codanics](https://codanics.com/)")
+st.sidebar.markdown("---")
+# urls of the images
+github_url = "https://img.icons8.com/fluent/48/000000/github.png"
 
+# redirect urls
+github_redirect_url = "https://github.com/marianadeem755"
+# adding a footer
 st.markdown("""
 <style>
 .footer {
     position: fixed;
     left: 0;
-    bottom: 0;
+    bottom: 0; 
     width: 100%;
     background-color: #f5f5f5;
     color: #000000;
@@ -419,12 +384,6 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown(
-    f'<div class="footer">'
-    f'Made by Maria Nadeem | '
-    f'<a href="https://github.com/marianadeem755" target="_blank">GitHub</a> | '
-    f'<a href="https://codanics.com/" target="_blank">Credits: Codanics</a>'
-    f'</div>',
-    unsafe_allow_html=True
-)
+st.markdown(f'<div class="footer">Made by Maria Nadeem<a href="{github_redirect_url}"><img src="{github_url}" width="30" height="30"></a>'
+             f'<a href="https://codanics.com/">Credits: https://codanics.com/</a></div>',unsafe_allow_html=True
+    )
