@@ -37,7 +37,7 @@ ticker=st.sidebar.selectbox("Select the Company", ticker_list)
 # Fetch the data using yahoofinance library
 data = yf.download(ticker, start=start_date, end=end_date)
 data.insert(0,"Date", data.index, True)
-data.reset_index(drop=True, inplace=True)
+data.reset_index(inplace=True)  # This keeps the date column properly named
 st.write('Data From', start_date, 'to', end_date)
 st.write(data)
 # Plot the Data 
@@ -45,7 +45,7 @@ st.header("Data Visualization plot")
 st.subheader("Plot the Data")
 plt.figure(figsize=(6,5))
 st.write("select the *specific date* from the date range or zoom in the plot for detailed visualization and select the specific column")
-fig=px.line(data, x="Date", y=data.index, title="Closing price of the stock", width=1000, height=600)
+fig = px.line(data, x="Date", y=column, title=f"{column} price of the stock", width=1000, height=600)
 st.plotly_chart(fig)
 # create a selection box to choose the column for forecasting
 column=st.selectbox("Select the column for forecasting", data.columns[1:])
