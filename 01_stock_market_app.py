@@ -86,7 +86,6 @@ if selected_model=="SARIMA":
     predictions=predictions.predicted_mean
     predictions.index=pd.date_range(start=end_date, periods=len(predictions), freq="D")
     predictions=pd.DataFrame(predictions)
-    predictions.insert(0, "Date", predictions.index, True)
     predictions.reset_index(drop=True, inplace=True)
     st.write('predictions', predictions)
     st.write("Actual Data", data)
