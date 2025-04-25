@@ -36,7 +36,8 @@ ticker_list=["AAPL", "MSFT", "GOOG", "GOOGL", "META", "TSLA", "NVDA", "ADBE", "P
 ticker=st.sidebar.selectbox("Select the Company", ticker_list)
 # Fetch the data using yahoofinance library
 data = yf.download(ticker, start=start_date, end=end_date)
-data.reset_index(inplace=True)
+data.insert(0,"Date", data.index, True)
+data.reset_index(drop=True, inplace=True)
 st.write('Data From', start_date, 'to', end_date)
 st.write(data)
 # Plot the Data 
@@ -85,10 +86,8 @@ if selected_model=="SARIMA":
     predictions=model.get_prediction(start=len(data), end=len(data)+forecast_period)
     predictions=predictions.predicted_mean
     predictions.index=pd.date_range(start=end_date, periods=len(predictions), freq="D")
-    predictions = pd.DataFrame({
-    "Date": pd.date_range(start=end_date, periods=forecast_period),
-    "Forecast": model.get_forecast(steps=forecast_period).predicted_mean.values
-    })
+    predictions=pd.DataFrame(predictions)
+    predictions.insert(0, "Date", predictions.index, True)
     predictions.reset_index(drop=True, inplace=True)
     st.write('predictions', predictions)
     st.write("Actual Data", data)
@@ -96,7 +95,7 @@ if selected_model=="SARIMA":
     # make the plotly plot
     fig=go.Figure()
     fig.add_trace(go.Scatter(x=data["Date"], y=data[column], name="Actual", mode="lines", line=dict(color='blue')))
-    fig.add_trace(go.Scatter(x=predictions["Date"], y=predictions["Forecast"], name="Predicted", mode="lines", line=dict(color='red')))
+    fig.add_trace(go.Scatter(x=predictions["Date"], y=predictions["predicted_mean"], name="Predicted", mode="lines", line=dict(color='red')))
     fig.update_layout(title="Actual vs Predicted", xaxis_title="Actual", yaxis_title="predicted", width=1000, height=400)
     st.plotly_chart(fig)
 elif selected_model=="Random Forest":
