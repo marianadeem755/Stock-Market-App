@@ -85,7 +85,10 @@ if selected_model=="SARIMA":
     predictions=model.get_prediction(start=len(data), end=len(data)+forecast_period)
     predictions=predictions.predicted_mean
     predictions.index=pd.date_range(start=end_date, periods=len(predictions), freq="D")
-    predictions=pd.DataFrame(predictions)
+    predictions = pd.DataFrame({
+    "Date": pd.date_range(start=end_date, periods=forecast_period),
+    "Forecast": model.get_forecast(steps=forecast_period).predicted_mean.values
+    })
     predictions.reset_index(drop=True, inplace=True)
     st.write('predictions', predictions)
     st.write("Actual Data", data)
@@ -93,7 +96,7 @@ if selected_model=="SARIMA":
     # make the plotly plot
     fig=go.Figure()
     fig.add_trace(go.Scatter(x=data["Date"], y=data[column], name="Actual", mode="lines", line=dict(color='blue')))
-    fig.add_trace(go.Scatter(x=predictions["Date"], y=predictions["predicted_mean"], name="Predicted", mode="lines", line=dict(color='red')))
+    fig.add_trace(go.Scatter(x=predictions["Date"], y=predictions["Forecast"], name="Predicted", mode="lines", line=dict(color='red')))
     fig.update_layout(title="Actual vs Predicted", xaxis_title="Actual", yaxis_title="predicted", width=1000, height=400)
     st.plotly_chart(fig)
 elif selected_model=="Random Forest":
