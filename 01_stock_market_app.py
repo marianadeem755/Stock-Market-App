@@ -82,12 +82,12 @@ if selected_model=="SARIMA":
              unsafe_allow_html=True)
     
     forecast_period=st.number_input("Select the Number of days to forecast", 1,365,10)
-    predictions=model.get_prediction(start=len(data), end=len(data)+forecast_period)
-    predictions=predictions.predicted_mean
-    predictions.index=pd.date_range(start=end_date, periods=len(predictions), freq="D")
-    predictions=pd.DataFrame(predictions)
-    predictions.insert(0, "Date", predictions.index, True)
-    predictions.reset_index(drop=True, inplace=True)
+    predictions = model.get_prediction(start=len(data), end=len(data)+forecast_period)
+    predictions = predictions.predicted_mean
+    predictions.index = pd.date_range(start=end_date, periods=len(predictions), freq="D")
+    predictions = pd.DataFrame(predictions)
+    predictions.reset_index(inplace=True)
+    predictions.rename(columns={'index': 'Date'}, inplace=True)
     st.write('predictions', predictions)
     st.write("Actual Data", data)
     st.write("---")
