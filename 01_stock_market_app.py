@@ -31,7 +31,7 @@ st.text("This App Forcast The stock Market price of selected company")
 st.image("https://images.unsplash.com/photo-1563986768711-b3bde3dc821e?q=80&w=1468&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D")
 st.sidebar.header("Select the parameters")
 start_date=st.sidebar.date_input('Start Date', date(2001,1,1))
-end_date=st.sidebar.date_input('End Date', date(2022,1,1))
+end_date=st.sidebar.date_input('End Date', date(2025,1,1))
 ticker_list=["AAPL", "MSFT", "GOOG", "GOOGL", "META", "TSLA", "NVDA", "ADBE", "PYPL", "INTC", "CMCSA", "NFLX", "PEP"]
 ticker=st.sidebar.selectbox("Select the Company", ticker_list)
 # Fetch the data using yahoofinance library
