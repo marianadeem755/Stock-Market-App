@@ -4,9 +4,9 @@ numpy
 pandas
 plotly
 prophet
-scikit_learn==1.4.1.post1
+scikit_learn
 seaborn
 statsmodels
 streamlit
-tensorflow==2.16.0rc0
+tensorflow
 yfinance
