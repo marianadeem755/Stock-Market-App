@@ -54,7 +54,7 @@ st.plotly_chart(fig)
 
 # create a selection box to choose the column for forecasting
 column=st.selectbox("Select the column for forecasting", data.columns[1:])
-data=data[["Date", column]]
+data=data[column]
 st.write("Selected Data for forecasting")
 st.write(data)
 
