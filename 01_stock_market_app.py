@@ -37,6 +37,7 @@ ticker=st.sidebar.selectbox("Select the Company", ticker_list)
 # Fetch the data using yahoofinance library
 data = yf.download(ticker, start=start_date, end=end_date)
 data.reset_index(inplace=True)
+data.reset_index(drop=True, inplace=True)
 st.write('Data From', start_date, 'to', end_date)
 st.write(data)
 # Plot the Data 
@@ -44,7 +45,7 @@ st.header("Data Visualization plot")
 st.subheader("Plot the Data")
 plt.figure(figsize=(6,5))
 st.write("select the *specific date* from the date range or zoom in the plot for detailed visualization and select the specific column")
-fig = px.line(data, x="Date", y=data.index, title="Closing price of the stock", width=1000, height=600)
+fig=px.line(data, x="Date", y=data.index, title="Closing price of the stock", width=1000, height=600)
 st.plotly_chart(fig)
 # create a selection box to choose the column for forecasting
 column=st.selectbox("Select the column for forecasting", data.columns[1:])
@@ -82,12 +83,12 @@ if selected_model=="SARIMA":
              unsafe_allow_html=True)
     
     forecast_period=st.number_input("Select the Number of days to forecast", 1,365,10)
-    predictions = model.get_prediction(start=len(data), end=len(data)+forecast_period)
-    predictions = predictions.predicted_mean
-    predictions.index = pd.date_range(start=end_date, periods=len(predictions), freq="D")
-    predictions = pd.DataFrame(predictions)
-    predictions.reset_index(inplace=True)
-    predictions.rename(columns={'index': 'Date'}, inplace=True)
+    predictions=model.get_prediction(start=len(data), end=len(data)+forecast_period)
+    predictions=predictions.predicted_mean
+    predictions.index=pd.date_range(start=end_date, periods=len(predictions), freq="D")
+    predictions=pd.DataFrame(predictions)
+    predictions.insert(0, "Date", predictions.index, True)
+    predictions.reset_index(drop=True, inplace=True)
     st.write('predictions', predictions)
     st.write("Actual Data", data)
     st.write("---")
