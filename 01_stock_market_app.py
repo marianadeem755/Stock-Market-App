@@ -36,6 +36,7 @@ ticker_list=["AAPL", "MSFT", "GOOG", "GOOGL", "META", "TSLA", "NVDA", "ADBE", "P
 ticker=st.sidebar.selectbox("Select the Company", ticker_list)
 # Fetch the data using yahoofinance library
 data = yf.download(ticker, start=start_date, end=end_date)
+data.reset_index(inplace=True)
 st.write('Data From', start_date, 'to', end_date)
 st.write(data)
 # Plot the Data 
