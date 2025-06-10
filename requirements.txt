@@ -1,4 +1,4 @@
-keras
+keras==2.12.0
 matplotlib
 numpy
 pandas
@@ -8,5 +8,5 @@ scikit-learn
 seaborn
 statsmodels
 streamlit
-tensorflow
+tensorflow==2.12.0
 yfinance
